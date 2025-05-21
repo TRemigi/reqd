@@ -1,4 +1,4 @@
-module github.com/TRemigi/requester
+module github.com/TRemigi/reqd
 
 go 1.24.3
 

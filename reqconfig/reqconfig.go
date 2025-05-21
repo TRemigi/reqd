@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/TRemigi/requester/path"
+	"github.com/TRemigi/reqd/pathutil"
 	"github.com/fatih/color"
 )
 
@@ -79,7 +79,7 @@ func runConfig(argsConfig RequestConfig, fileConfig RequestConfig) RequestConfig
 
 func configFromFile() *RequestConfig {
 	config := make(map[string]string)
-	filePath := path.ExpandPath("~/.requester.conf")
+	filePath := pathutil.ExpandPath("~/.requester.conf")
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil // silently ignore missing file
