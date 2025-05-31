@@ -10,50 +10,40 @@ import (
 	"strings"
 
 	"github.com/TRemigi/reqd/pathutil"
-	"github.com/fatih/color"
 )
 
 type RequestConfig struct {
-	WorkerCount int
+	DataFile    string
+	Method      string
+	Token       string
+	TokenScheme string
 	Url         string
-	InputFile   string
-	AuthToken   string
-}
-
-type Flags struct {
 	WorkerCount int
-	Url         string
-	InputFile   string
-	AuthToken   string
 }
 
-func Get(f Flags) RequestConfig {
-	fileConfig := configFromFile()
-	argConfig := RequestConfig{
-		WorkerCount: f.WorkerCount,
-		Url:         f.Url,
-		InputFile:   f.InputFile,
-		AuthToken:   f.AuthToken,
-	}
-	return finalConfig(argConfig, *fileConfig)
+func Get(f RequestConfig, p string) RequestConfig {
+	fileConfig := configFromFile(p)
+	return finalConfig(f, *fileConfig)
 }
 
-func Print(config RequestConfig) {
-	color.Blue("Sending requests with configuration:")
-	fmt.Fprintln(os.Stdout, "worker_count:", config.WorkerCount)
-	fmt.Fprintln(os.Stdout, "url:", config.Url)
-	fmt.Fprintln(os.Stdout, "input_file:", config.InputFile)
-	fmt.Fprintln(os.Stdout, "auth_token:", config.AuthToken)
+func Print(c RequestConfig) {
+	fmt.Printf(" :: Method       : %s\n", strings.ToUpper(c.Method))
+	fmt.Printf(" :: URL          : %s\n", c.Url)
+	fmt.Printf(" :: Token Scheme : %s\n", c.TokenScheme)
+	fmt.Printf(" :: Token Value  : %s\n", redactToken(c.Token))
+	fmt.Printf(" :: Data File    : %s\n", c.DataFile)
+	fmt.Printf(" :: Worker Count : %d\n", c.WorkerCount)
+	fmt.Println("________________________________________________")
 	fmt.Println()
 }
 
-func GetWithPrint(f Flags) RequestConfig {
-	c := Get(f)
+func GetWithPrint(f RequestConfig, p string) RequestConfig {
+	c := Get(f, p)
 	Print(c)
 	return c
 }
 
-func BodiesFromFile(inputFile string) []map[string]any {
+func DataFromFile(inputFile string) []map[string]any {
 	data, err := os.ReadFile(pathutil.ExpandPath(inputFile))
 	if err != nil {
 		log.Fatal(err)
@@ -66,15 +56,20 @@ func BodiesFromFile(inputFile string) []map[string]any {
 	return items
 }
 
-
 func finalConfig(argsConfig RequestConfig, fileConfig RequestConfig) RequestConfig {
 	var workerCount int
-	var url, inputFile, authToken string
+	var method, url, dataFile, tokenScheme, tokenValue string
 
 	if argsConfig.WorkerCount != 0 {
 		workerCount = argsConfig.WorkerCount
 	} else if fileConfig.WorkerCount != 0 {
 		workerCount = fileConfig.WorkerCount
+	}
+
+	if argsConfig.Method != "" {
+		method = argsConfig.Method
+	} else if fileConfig.Method != "" {
+		method = fileConfig.Method
 	}
 
 	if argsConfig.Url != "" {
@@ -83,31 +78,47 @@ func finalConfig(argsConfig RequestConfig, fileConfig RequestConfig) RequestConf
 		url = fileConfig.Url
 	}
 
-	if argsConfig.InputFile != "" {
-		inputFile = argsConfig.InputFile
-	} else if fileConfig.InputFile != "" {
-		inputFile = fileConfig.InputFile
+	if argsConfig.DataFile != "" {
+		dataFile = argsConfig.DataFile
+	} else if fileConfig.DataFile != "" {
+		dataFile = fileConfig.DataFile
 	}
 
-	if argsConfig.AuthToken != "" {
-		authToken = argsConfig.AuthToken
-	} else if fileConfig.AuthToken != "" {
-		authToken = fileConfig.AuthToken
+	if argsConfig.TokenScheme != "" {
+		tokenScheme = argsConfig.TokenScheme
+	} else if fileConfig.TokenScheme != "" {
+		tokenScheme = fileConfig.TokenScheme
 	}
 
-	promptForMissingArgs(&workerCount, &url, &inputFile, &authToken)
+	if argsConfig.Token != "" {
+		tokenValue = argsConfig.Token
+	} else if fileConfig.Token != "" {
+		tokenValue = fileConfig.Token
+	}
+	promptForMissingRequiredArgs(&workerCount, &method, &url, &dataFile)
 
 	return RequestConfig{
-		WorkerCount: workerCount, Url: url, InputFile: inputFile, AuthToken: authToken,
+		DataFile:    dataFile,
+		Method:      method,
+		Token:       tokenValue,
+		TokenScheme: tokenScheme,
+		Url:         url,
+		WorkerCount: workerCount,
 	}
 }
 
-func configFromFile() *RequestConfig {
+func configFromFile(p string) *RequestConfig {
 	config := make(map[string]string)
-	filePath := pathutil.ExpandPath("~/.requester.conf")
+	var filePath string
+	if p != "" {
+		filePath = p
+	} else {
+		filePath = pathutil.ExpandPath("~/.reqd.conf")
+	}
+
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil // silently ignore missing file
+		log.Fatal(err)
 	}
 	defer file.Close()
 
@@ -127,36 +138,45 @@ func configFromFile() *RequestConfig {
 	WorkerCount, _ := strconv.Atoi(config["worker_count"])
 	return &RequestConfig{
 		WorkerCount: WorkerCount,
+		Method:      config["method"],
 		Url:         config["url"],
-		InputFile:   config["input_file"],
-		AuthToken:   config["auth_token"],
+		DataFile:    config["data_file"],
+		TokenScheme: config["token_scheme"],
+		Token:       config["token_value"],
 	}
 }
 
-func promptForMissingArgs(WorkerCount *int, url *string, inputFile *string, authToken *string) {
+func redactToken(token string) string {
+	if len(token) <= 4 {
+		return "****"
+	}
+	return "****" + token[len(token)-4:]
+}
+
+func promptForMissingRequiredArgs(workerCount *int, method *string, url *string, dataFile *string) {
 	scanner := bufio.NewScanner(os.Stdin)
-	if *WorkerCount == 0 {
+	if *workerCount == 0 {
 		fmt.Print("Worker count: ")
 		scanner.Scan()
 		count, err := strconv.Atoi(scanner.Text())
 		if err != nil {
 			log.Fatal(err)
 		}
-		*WorkerCount = count
+		*workerCount = count
 	}
 	if *url == "" {
-		fmt.Print("Enter request url: ")
+		fmt.Print("Url: ")
 		scanner.Scan()
 		*url = scanner.Text()
 	}
-	if *inputFile == "" {
-		fmt.Print("Enter request payload JSON file path: ")
+	if *dataFile == "" {
+		fmt.Print("JSON file path: ")
 		scanner.Scan()
-		*inputFile = scanner.Text()
+		*dataFile = scanner.Text()
 	}
-	if *authToken == "" {
-		fmt.Print("Enter auth token: ")
+	if *method == "" {
+		fmt.Print("Method (post, get, put, delete): ")
 		scanner.Scan()
-		*authToken = scanner.Text()
+		*method = scanner.Text()
 	}
 }

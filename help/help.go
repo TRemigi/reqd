@@ -1,40 +1,43 @@
 package help
 
 func Help() string {
-	return `___REQUESTER___
+	return `🦖 REQD - Concurrent HTTP Request Dispatcher
 
 Usage:
-  requester [worker_count] [url] [input_file] [auth_token]
+  reqd [flags]
 
 Description:
-  requester is a concurrent HTTP POST requester that reads JSON request bodies from a file and sends them to a target url.
+  REQD is a concurrent HTTP request dispatcher that reads request data from a JSON file
+  and sends them to a target URL using the specified HTTP method.
   Useful for testing APIs or replaying request data at scale.
 
-Argument Precedence:
+Flag Precedence:
   Arguments are resolved in the following order of priority:
-    1. Command-line arguments
-    2. Configuration file: ~/.requester.conf
-    3. Interactive prompt (if any argument is missing)
+    1. Command-line flags
+    2. Configuration file: ~/.reqd.conf
+    3. Interactive prompt (for missing required values)
 
-Arguments:
+Flags:
+	-c     Path to config file (defaults to ~/.reqd.conf)
+  -d     Path to a JSON file containing an array of request data objects
+  -m     Request method (post, get, put, delete)
+  -s     Auth token scheme (e.g., Bearer)
+  -t     Auth token value
+  -u     Target URL
   -w     Number of concurrent worker goroutines to send requests
-  -u     Target url for POST requests
-  -f     Path to a JSON file containing an array of request objects
-  -t     Bearer token for Authorization header
-	-h     Show this help message
+  -h     Show this help message and exit
 
-Configuration File (~/.requester.conf):
-  You may define default values in a simple key=value format:
-    worker_count = 10
+Configuration File (~/.reqd.conf):
+  You may define default values using a simple key = value format:
+    data_file = ~/Downloads/requests.json
+    method = POST
+    token_scheme = Bearer
+    token_value = abc123
     url = http://localhost:8080/endpoint
-    input_file = ~/Downloads/requests.json
-    auth_token = abc123
+    worker_count = 8
 
-Example:
-  requester 5 https://api.example.com/data ./reqs.json supersecrettoken
-  requester  # Uses values from ~/.requester.conf and prompts for missing ones
-
-Help:
-  -h   Show this help message and exit
+Examples:
+  reqd -d ./reqs.json -s Bearer -t supersecrettoken -u https://api.example.com/data -w 8
+  reqd                # Uses values from ~/.reqd.conf and prompts for any missing flags
 `
 }

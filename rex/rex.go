@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/TRemigi/reqd/reporting"
@@ -37,7 +38,7 @@ func GetReqd(config reqconfig.RequestConfig, jobs chan map[string]any, rFile *os
 				case <-ctx.Done():
 					return
 				default:
-					makeRequest(ctx, cancel, job, config.Url, config.AuthToken, client, rFile, results)
+					makeRequest(ctx, cancel, job, config, client, rFile, results)
 				}
 			}
 		}()
@@ -51,11 +52,13 @@ func GetReqd(config reqconfig.RequestConfig, jobs chan map[string]any, rFile *os
 	return results
 }
 
-func makeRequest(ctx context.Context, cancel context.CancelFunc, job map[string]any, url string, authToken string, client *http.Client, rFile *os.File, results chan<- bool) {
+func makeRequest(ctx context.Context, cancel context.CancelFunc, job map[string]any, config reqconfig.RequestConfig, client *http.Client, rFile *os.File, results chan<- bool) {
 	reqBody, _ := json.Marshal(job)
-	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBody))
+	req, _ := http.NewRequestWithContext(ctx, strings.ToUpper(config.Method), config.Url, bytes.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+authToken)
+	if config.TokenScheme != "" {
+		req.Header.Set("Authorization", config.TokenScheme+" "+config.Token)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
