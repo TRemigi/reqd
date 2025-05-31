@@ -4,28 +4,30 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"sync"
 
-	"github.com/TRemigi/reqd/pathutil"
+	"github.com/TRemigi/reqd/reporting"
 	"github.com/TRemigi/reqd/reqconfig"
 	"github.com/fatih/color"
-	"github.com/schollz/progressbar/v3"
 )
 
-func GetReqd(config reqconfig.RequestConfig, jobs chan map[string]any, bar *progressbar.ProgressBar, rFile *os.File) {
-	nreqs := len(jobs)
-	var wg sync.WaitGroup
-	failures := failures()
-	client := &http.Client{}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func CreateJobs(reqBodies []map[string]any) chan map[string]any {
+	jobs := make(chan map[string]any, len(reqBodies))
+	for _, item := range reqBodies {
+		jobs <- item
+	}
+	close(jobs)
+	return jobs
+}
 
-	color.Blue("Running...")
+func GetReqd(config reqconfig.RequestConfig, jobs chan map[string]any, rFile *os.File, ctx context.Context, cancel context.CancelFunc) <-chan bool {
+	results := make(chan bool)
+	client := &http.Client{}
+	var wg sync.WaitGroup
+
 	for range config.WorkerCount {
 		wg.Add(1)
 		go func() {
@@ -35,8 +37,7 @@ func GetReqd(config reqconfig.RequestConfig, jobs chan map[string]any, bar *prog
 				case <-ctx.Done():
 					return
 				default:
-					makeRequest(ctx, job, config.Url, config.AuthToken, client, cancel, rFile, failures)
-					bar.Add(1)
+					makeRequest(ctx, cancel, job, config.Url, config.AuthToken, client, rFile, results)
 				}
 			}
 		}()
@@ -44,35 +45,13 @@ func GetReqd(config reqconfig.RequestConfig, jobs chan map[string]any, bar *prog
 
 	go func() {
 		wg.Wait()
-		close(failures)
+		close(results)
 	}()
 
-	totalFailed := 0
-	for range failures {
-			totalFailed++
-			bar.Describe(fmt.Sprintf("%d/%d failed |", totalFailed, nreqs))
-	}
+	return results
 }
 
-func BodiesFromFile(inputFile string) []map[string]any {
-	data, err := os.ReadFile(pathutil.ExpandPath(inputFile))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var items []map[string]any
-	if err := json.Unmarshal(data, &items); err != nil {
-		log.Fatal(err)
-	}
-	return items
-}
-
-func failures() chan int {
-	failures := make(chan int)
-	return failures
-}
-
-func makeRequest(ctx context.Context, job map[string]any, url string, authToken string, client *http.Client, cancel context.CancelFunc, rFile *os.File, failures chan<- int) {
+func makeRequest(ctx context.Context, cancel context.CancelFunc, job map[string]any, url string, authToken string, client *http.Client, rFile *os.File, results chan<- bool) {
 	reqBody, _ := json.Marshal(job)
 	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/json")
@@ -83,18 +62,11 @@ func makeRequest(ctx context.Context, job map[string]any, url string, authToken 
 		color.Red("Error: %s", err)
 		cancel()
 	} else if resp.StatusCode != http.StatusOK {
-		failures <- 1
-
+		results <- false
 		respBody, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		writeToReport(reqBody, respBody, rFile)
-	}
-}
-
-func writeToReport(reqBody []byte, respBody []byte, rFile *os.File) {
-	report := fmt.Sprintf("Request:\n%s\nResponse:\n%s\n\n", string(reqBody), string(respBody))
-	_, ferr := rFile.Write([]byte(report))
-	if ferr != nil {
-		log.Fatal(ferr)
+		reporting.WriteToReport(reqBody, respBody, rFile)
+	} else {
+		results <- true
 	}
 }

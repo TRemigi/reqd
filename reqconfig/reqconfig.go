@@ -2,6 +2,7 @@ package reqconfig
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -19,19 +20,25 @@ type RequestConfig struct {
 	AuthToken   string
 }
 
-func GetConfig(flagWorkerCount *int, flagUrl *string, flagInputFile *string, flagAuthToken *string) RequestConfig {
-	fileConfig := configFromFile()
-	argConfig := RequestConfig{
-		WorkerCount: *flagWorkerCount,
-		Url:         *flagUrl,
-		InputFile:   *flagInputFile,
-		AuthToken:   *flagAuthToken,
-	}
-	runConfig := runConfig(argConfig, *fileConfig)
-	return runConfig
+type Flags struct {
+	WorkerCount int
+	Url         string
+	InputFile   string
+	AuthToken   string
 }
 
-func PrintConfig(config RequestConfig) {
+func Get(f Flags) RequestConfig {
+	fileConfig := configFromFile()
+	argConfig := RequestConfig{
+		WorkerCount: f.WorkerCount,
+		Url:         f.Url,
+		InputFile:   f.InputFile,
+		AuthToken:   f.AuthToken,
+	}
+	return finalConfig(argConfig, *fileConfig)
+}
+
+func Print(config RequestConfig) {
 	color.Blue("Sending requests with configuration:")
 	fmt.Fprintln(os.Stdout, "worker_count:", config.WorkerCount)
 	fmt.Fprintln(os.Stdout, "url:", config.Url)
@@ -40,8 +47,27 @@ func PrintConfig(config RequestConfig) {
 	fmt.Println()
 }
 
+func GetWithPrint(f Flags) RequestConfig {
+	c := Get(f)
+	Print(c)
+	return c
+}
 
-func runConfig(argsConfig RequestConfig, fileConfig RequestConfig) RequestConfig {
+func BodiesFromFile(inputFile string) []map[string]any {
+	data, err := os.ReadFile(pathutil.ExpandPath(inputFile))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var items []map[string]any
+	if err := json.Unmarshal(data, &items); err != nil {
+		log.Fatal(err)
+	}
+	return items
+}
+
+
+func finalConfig(argsConfig RequestConfig, fileConfig RequestConfig) RequestConfig {
 	var workerCount int
 	var url, inputFile, authToken string
 
