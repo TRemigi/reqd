@@ -9,7 +9,7 @@ import (
 
 	"github.com/TRemigi/reqd/help"
 	"github.com/TRemigi/reqd/reqconfig"
-	rex "github.com/TRemigi/reqd/reqs"
+	"github.com/TRemigi/reqd/rex"
 	"github.com/fatih/color"
 	"github.com/schollz/progressbar/v3"
 )
