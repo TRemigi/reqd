@@ -51,7 +51,6 @@ func runConfig(argsConfig RequestConfig, fileConfig RequestConfig) RequestConfig
 		workerCount = fileConfig.WorkerCount
 	}
 
-	fmt.Println(argsConfig.Url)
 	if argsConfig.Url != "" {
 		url = argsConfig.Url
 	} else if fileConfig.Url != "" {

@@ -3,10 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"os"
+	"time"
 
 	"github.com/TRemigi/reqd/help"
 	"github.com/TRemigi/reqd/reqconfig"
-	"github.com/TRemigi/reqd/reqs"
+	rex "github.com/TRemigi/reqd/reqs"
 	"github.com/fatih/color"
 	"github.com/schollz/progressbar/v3"
 )
@@ -26,7 +29,8 @@ func main() {
 		return
 	}
 
-	color.Green("___REQUESTER___")
+	color.Green("🦖 REQD")
+	fmt.Println()
 
 	runConfig := reqconfig.GetConfig(flagWorkerCount, flagUrl, flagInputFile, flagAuthToken)
 	reqconfig.PrintConfig(runConfig)
@@ -35,7 +39,8 @@ func main() {
 	bar := progressbar.New(len(reqBodies))
 	jobs := createJobs(reqBodies)
 
-	rex.GetReqd(runConfig, jobs, bar)
+	rf := createReportFile()
+	rex.GetReqd(runConfig, jobs, bar, rf)
 }
 
 func createJobs(reqBodies []map[string]any) chan map[string]any {
@@ -45,4 +50,16 @@ func createJobs(reqBodies []map[string]any) chan map[string]any {
 	}
 	close(jobs)
 	return jobs
+}
+
+func createReportFile() *os.File {
+	wd, wderr := os.Getwd()
+	if wderr != nil {
+		log.Fatal(wderr)
+	}
+	f, err := os.Create(wd + "/" + time.Now().Truncate(time.Second).Format("2006-01-02_15-04-05") + ".rpt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return f
 }
