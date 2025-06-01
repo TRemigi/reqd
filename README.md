@@ -47,7 +47,7 @@ If any required values are missing from CLI flags and the config file, `reqd` wi
 | `-d`  | Path to JSON file containing an array of request data objects                   |
 | `-m`  | HTTP method to use (`POST`, `GET`, `PUT`, `DELETE`, etc.)                       |
 | `-lf` | Name of log file for failed requests (no failure logging if not provided)       |
-| `-ls` | Name of log file for unsuccessful requests (no success logging if not provided) |
+| `-ls` | Name of log file for successful requests (no success logging if not provided) |
 | `-s`  | Auth token scheme (e.g. `Bearer`)                                               |
 | `-t`  | Auth token value                                                                |
 | `-u`  | Target URL                                                                      |
