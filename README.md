@@ -89,8 +89,8 @@ To enable reporting, provide log file paths either via command-line flags or you
 ### Config file keys
 
 ```ini
-success_log = ./success.rpt
-failure_log = ./failures.rpt
+success_log = ./success.log
+failure_log = ./failures.log
 ```
 
 Each log entry includes:
