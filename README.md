@@ -114,5 +114,3 @@ MIT
 - [ ] Support combining request data from multiple data files
 - [ ] Retry logic with backoff
 - [ ] Rate limiting
-- [ ] Logging and metrics
-- [ ] Make auth token optional
