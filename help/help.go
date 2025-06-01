@@ -21,6 +21,8 @@ Flags:
 	-c     Path to config file (defaults to ~/.reqd.conf)
   -d     Path to a JSON file containing an array of request data objects
   -m     Request method (post, get, put, delete)
+	-lf    Name of log file for failed requests
+	-ls    Name of log file for successful requests
   -s     Auth token scheme (e.g., Bearer)
   -t     Auth token value
   -u     Target URL
@@ -30,14 +32,16 @@ Flags:
 Configuration File (~/.reqd.conf):
   You may define default values using a simple key = value format:
     data_file = ~/Downloads/requests.json
+		failure_log = falied.log
     method = POST
+		success_log = succeeded.log
     token_scheme = Bearer
     token_value = abc123
     url = http://localhost:8080/endpoint
     worker_count = 8
 
 Examples:
-  reqd -d ./reqs.json -s Bearer -t supersecrettoken -u https://api.example.com/data -w 8
+  reqd -d ./reqs.json -s Bearer -t supersecrettoken -u https://api.example.com/data -w 8 -lf failed.log -ls succeeded.log
   reqd                # Uses values from ~/.reqd.conf and prompts for any missing flags
 `
 }

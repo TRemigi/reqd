@@ -14,7 +14,9 @@ import (
 
 type RequestConfig struct {
 	DataFile    string
+	FailureLog  string
 	Method      string
+	SuccessLog  string
 	Token       string
 	TokenScheme string
 	Url         string
@@ -27,12 +29,14 @@ func Get(f RequestConfig, p string) RequestConfig {
 }
 
 func Print(c RequestConfig) {
+	fmt.Printf(" :: Data File    : %s\n", c.DataFile)
 	fmt.Printf(" :: Method       : %s\n", strings.ToUpper(c.Method))
-	fmt.Printf(" :: URL          : %s\n", c.Url)
 	fmt.Printf(" :: Token Scheme : %s\n", c.TokenScheme)
 	fmt.Printf(" :: Token Value  : %s\n", redactToken(c.Token))
-	fmt.Printf(" :: Data File    : %s\n", c.DataFile)
+	fmt.Printf(" :: URL          : %s\n", c.Url)
 	fmt.Printf(" :: Worker Count : %d\n", c.WorkerCount)
+	fmt.Printf(" :: SuccessLog   : %s\n", c.SuccessLog)
+	fmt.Printf(" :: FailureLog   : %s\n", c.FailureLog)
 	fmt.Println("________________________________________________")
 	fmt.Println()
 }
@@ -54,57 +58,6 @@ func DataFromFile(inputFile string) []map[string]any {
 		log.Fatal(err)
 	}
 	return items
-}
-
-func finalConfig(argsConfig RequestConfig, fileConfig RequestConfig) RequestConfig {
-	var workerCount int
-	var method, url, dataFile, tokenScheme, tokenValue string
-
-	if argsConfig.WorkerCount != 0 {
-		workerCount = argsConfig.WorkerCount
-	} else if fileConfig.WorkerCount != 0 {
-		workerCount = fileConfig.WorkerCount
-	}
-
-	if argsConfig.Method != "" {
-		method = argsConfig.Method
-	} else if fileConfig.Method != "" {
-		method = fileConfig.Method
-	}
-
-	if argsConfig.Url != "" {
-		url = argsConfig.Url
-	} else if fileConfig.Url != "" {
-		url = fileConfig.Url
-	}
-
-	if argsConfig.DataFile != "" {
-		dataFile = argsConfig.DataFile
-	} else if fileConfig.DataFile != "" {
-		dataFile = fileConfig.DataFile
-	}
-
-	if argsConfig.TokenScheme != "" {
-		tokenScheme = argsConfig.TokenScheme
-	} else if fileConfig.TokenScheme != "" {
-		tokenScheme = fileConfig.TokenScheme
-	}
-
-	if argsConfig.Token != "" {
-		tokenValue = argsConfig.Token
-	} else if fileConfig.Token != "" {
-		tokenValue = fileConfig.Token
-	}
-	promptForMissingRequiredArgs(&workerCount, &method, &url, &dataFile)
-
-	return RequestConfig{
-		DataFile:    dataFile,
-		Method:      method,
-		Token:       tokenValue,
-		TokenScheme: tokenScheme,
-		Url:         url,
-		WorkerCount: workerCount,
-	}
 }
 
 func configFromFile(p string) *RequestConfig {
@@ -137,16 +90,87 @@ func configFromFile(p string) *RequestConfig {
 	}
 	WorkerCount, _ := strconv.Atoi(config["worker_count"])
 	return &RequestConfig{
-		WorkerCount: WorkerCount,
-		Method:      config["method"],
-		Url:         config["url"],
 		DataFile:    config["data_file"],
-		TokenScheme: config["token_scheme"],
+		FailureLog:  config["failure_log"],
+		Method:      config["method"],
+		SuccessLog:  config["success_log"],
 		Token:       config["token_value"],
+		TokenScheme: config["token_scheme"],
+		Url:         config["url"],
+		WorkerCount: WorkerCount,
+	}
+}
+
+func finalConfig(argsConfig RequestConfig, fileConfig RequestConfig) RequestConfig {
+	var dataFile, failureLog, method, successLog, tokenScheme, tokenValue, url string
+	var workerCount int
+
+	if argsConfig.DataFile != "" {
+		dataFile = argsConfig.DataFile
+	} else if fileConfig.DataFile != "" {
+		dataFile = fileConfig.DataFile
+	}
+
+	if argsConfig.FailureLog != "" {
+		failureLog = argsConfig.FailureLog
+	} else if fileConfig.FailureLog != "" {
+		failureLog = fileConfig.FailureLog
+	}
+
+	if argsConfig.Method != "" {
+		method = argsConfig.Method
+	} else if fileConfig.Method != "" {
+		method = fileConfig.Method
+	}
+
+	if argsConfig.SuccessLog != "" {
+		successLog = argsConfig.SuccessLog
+	} else if fileConfig.SuccessLog != "" {
+		successLog = fileConfig.SuccessLog
+	}
+
+	if argsConfig.Token != "" {
+		tokenValue = argsConfig.Token
+	} else if fileConfig.Token != "" {
+		tokenValue = fileConfig.Token
+	}
+
+	if argsConfig.TokenScheme != "" {
+		tokenScheme = argsConfig.TokenScheme
+	} else if fileConfig.TokenScheme != "" {
+		tokenScheme = fileConfig.TokenScheme
+	}
+
+	if argsConfig.Url != "" {
+		url = argsConfig.Url
+	} else if fileConfig.Url != "" {
+		url = fileConfig.Url
+	}
+
+	if argsConfig.WorkerCount != 0 {
+		workerCount = argsConfig.WorkerCount
+	} else if fileConfig.WorkerCount != 0 {
+		workerCount = fileConfig.WorkerCount
+	}
+
+	promptForMissingRequiredArgs(&workerCount, &method, &url, &dataFile)
+
+	return RequestConfig{
+		DataFile:    dataFile,
+		FailureLog:  failureLog,
+		Method:      method,
+		SuccessLog:  successLog,
+		Token:       tokenValue,
+		TokenScheme: tokenScheme,
+		Url:         url,
+		WorkerCount: workerCount,
 	}
 }
 
 func redactToken(token string) string {
+	if len(token) == 0 {
+		return ""
+	}
 	if len(token) <= 4 {
 		return "****"
 	}

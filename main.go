@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"sync"
 
 	"github.com/TRemigi/reqd/help"
 	"github.com/TRemigi/reqd/reporting"
@@ -18,8 +19,10 @@ func main() {
 	var (
 		flagConfigFile  = flag.String("c", "", "Path to config file")
 		flagDataFile    = flag.String("d", "", "Path to JSON data file")
+		flagFailureLog  = flag.String("lf", "", "Failure log file name")
 		flagHelp        = flag.Bool("h", false, "Show help message")
 		flagMethod      = flag.String("m", "", "Request method")
+		flagSuccessLog  = flag.String("ls", "", "Success log file name")
 		flagToken       = flag.String("t", "", "Auth token value")
 		flagTokenScheme = flag.String("s", "", "Auth token scheme")
 		flagUrl         = flag.String("u", "", "Target url")
@@ -36,7 +39,9 @@ func main() {
 
 	fConfig := reqconfig.RequestConfig{
 		DataFile:    *flagDataFile,
+		FailureLog:  *flagFailureLog,
 		Method:      *flagMethod,
+		SuccessLog:  *flagSuccessLog,
 		Token:       *flagToken,
 		TokenScheme: *flagTokenScheme,
 		Url:         *flagUrl,
@@ -49,12 +54,13 @@ func main() {
 	bar := progressbar.New(numReqs)
 	jobs := rex.CreateJobs(reqData)
 
+	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
-	rf := reporting.CreateReportFile()
-	results := rex.GetReqd(c, jobs, rf, ctx, cancel)
-	reporting.Progress(results, bar, numReqs)
+	results := rex.GetReqd(c, jobs, ctx, cancel, &wg)
+	reporting.ProcessResults(c, results, bar, &wg)
+
+	wg.Wait()
 }
 
 func printHeader(version string) {
