@@ -8,8 +8,8 @@ import (
 
 	"github.com/TRemigi/reqd/help"
 	"github.com/TRemigi/reqd/reporting"
-	"github.com/TRemigi/reqd/reqconfig"
-	"github.com/TRemigi/reqd/rex"
+	"github.com/TRemigi/reqd/reqc"
+	"github.com/TRemigi/reqd/reqd"
 	"github.com/TRemigi/reqd/version"
 	"github.com/fatih/color"
 	"github.com/schollz/progressbar/v3"
@@ -21,7 +21,8 @@ func main() {
 		flagDataFile    = flag.String("d", "", "Path to JSON data file")
 		flagFailureLog  = flag.String("lf", "", "Failure log file name")
 		flagHelp        = flag.Bool("h", false, "Show help message")
-		flagMethod      = flag.String("m", "", "Request method")
+		flagMethod      = flag.String("rm", "", "Request method")
+		flagMode        = flag.String("m", "", "Mode")
 		flagSuccessLog  = flag.String("ls", "", "Success log file name")
 		flagToken       = flag.String("t", "", "Auth token value")
 		flagTokenScheme = flag.String("s", "", "Auth token scheme")
@@ -37,28 +38,29 @@ func main() {
 
 	printHeader(version.Version)
 
-	fConfig := reqconfig.RequestConfig{
+	fConfig := reqc.RequestConfig{
 		DataFile:    *flagDataFile,
 		FailureLog:  *flagFailureLog,
 		Method:      *flagMethod,
+		Mode:        *flagMode,
 		SuccessLog:  *flagSuccessLog,
 		Token:       *flagToken,
 		TokenScheme: *flagTokenScheme,
 		Url:         *flagUrl,
 		WorkerCount: *flagWorkerCount,
 	}
-	c := reqconfig.GetWithPrint(fConfig, *flagConfigFile)
+	config := reqc.GetWithPrint(fConfig, *flagConfigFile)
 
-	reqData := reqconfig.DataFromFile(c.DataFile)
+	reqData := reqc.DataFromJSONFile(config.DataFile)
 	numReqs := len(reqData)
 	bar := progressbar.New(numReqs)
-	jobs := rex.CreateJobs(reqData)
+	jobs := reqd.CreateJobs(reqData)
 
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
 
-	results := rex.GetReqd(c, jobs, ctx, cancel, &wg)
-	reporting.ProcessResults(c, results, bar, &wg)
+	results := reqd.GetReqd(config, jobs, ctx, cancel, &wg)
+	reporting.ProcessResults(config, results, bar, &wg)
 
 	wg.Wait()
 }
@@ -72,7 +74,7 @@ func printHeader(version string) {
   ██║  ██║███████╗╚██████╔╝██████╔╝
   ╚═╝  ╚═╝╚══════╝ ╚══▀▀═╝ ╚═════╝ 
 `)
-	fmt.Printf("REQD — Request Dispatcher v%s\n", version)
+	fmt.Printf("Request Dispatcher v%s\n", version)
 	fmt.Println("________________________________________________")
 	fmt.Println()
 }

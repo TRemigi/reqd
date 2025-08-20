@@ -1,4 +1,4 @@
-package reqconfig
+package reqc
 
 import (
 	"bufio"
@@ -16,16 +16,26 @@ type RequestConfig struct {
 	DataFile    string
 	FailureLog  string
 	Method      string
+	Mode        string
 	SuccessLog  string
 	Token       string
 	TokenScheme string
 	Url         string
 	WorkerCount int
+	Headers     []Header
+}
+
+type Header struct {
+	Name  string
+	Value string
 }
 
 func Get(f RequestConfig, p string) RequestConfig {
 	fileConfig := configFromFile(p)
-	return finalConfig(f, *fileConfig)
+	mergedConfig := mergedConfig(f, *fileConfig)
+	promptForMissingRequiredArgs(&mergedConfig)
+	PromptForAdditionalHeaders(&mergedConfig)
+	return mergedConfig
 }
 
 func Print(c RequestConfig) {
@@ -47,7 +57,7 @@ func GetWithPrint(f RequestConfig, p string) RequestConfig {
 	return c
 }
 
-func DataFromFile(inputFile string) []map[string]any {
+func DataFromJSONFile(inputFile string) []map[string]any {
 	data, err := os.ReadFile(pathutil.ExpandPath(inputFile))
 	if err != nil {
 		log.Fatal(err)
@@ -81,6 +91,7 @@ func configFromFile(p string) *RequestConfig {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
+
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) == 2 {
 			key := strings.TrimSpace(parts[0])
@@ -93,6 +104,7 @@ func configFromFile(p string) *RequestConfig {
 		DataFile:    config["data_file"],
 		FailureLog:  config["failure_log"],
 		Method:      config["method"],
+		Mode:        config["mode"],
 		SuccessLog:  config["success_log"],
 		Token:       config["token_value"],
 		TokenScheme: config["token_scheme"],
@@ -101,70 +113,25 @@ func configFromFile(p string) *RequestConfig {
 	}
 }
 
-func finalConfig(argsConfig RequestConfig, fileConfig RequestConfig) RequestConfig {
-	var dataFile, failureLog, method, successLog, tokenScheme, tokenValue, url string
-	var workerCount int
-
-	if argsConfig.DataFile != "" {
-		dataFile = argsConfig.DataFile
-	} else if fileConfig.DataFile != "" {
-		dataFile = fileConfig.DataFile
-	}
-
-	if argsConfig.FailureLog != "" {
-		failureLog = argsConfig.FailureLog
-	} else if fileConfig.FailureLog != "" {
-		failureLog = fileConfig.FailureLog
-	}
-
-	if argsConfig.Method != "" {
-		method = argsConfig.Method
-	} else if fileConfig.Method != "" {
-		method = fileConfig.Method
-	}
-
-	if argsConfig.SuccessLog != "" {
-		successLog = argsConfig.SuccessLog
-	} else if fileConfig.SuccessLog != "" {
-		successLog = fileConfig.SuccessLog
-	}
-
-	if argsConfig.Token != "" {
-		tokenValue = argsConfig.Token
-	} else if fileConfig.Token != "" {
-		tokenValue = fileConfig.Token
-	}
-
-	if argsConfig.TokenScheme != "" {
-		tokenScheme = argsConfig.TokenScheme
-	} else if fileConfig.TokenScheme != "" {
-		tokenScheme = fileConfig.TokenScheme
-	}
-
-	if argsConfig.Url != "" {
-		url = argsConfig.Url
-	} else if fileConfig.Url != "" {
-		url = fileConfig.Url
-	}
-
-	if argsConfig.WorkerCount != 0 {
-		workerCount = argsConfig.WorkerCount
-	} else if fileConfig.WorkerCount != 0 {
-		workerCount = fileConfig.WorkerCount
-	}
-
-	promptForMissingRequiredArgs(&workerCount, &method, &url, &dataFile)
-
+func mergedConfig(argsConfig RequestConfig, fileConfig RequestConfig) RequestConfig {
 	return RequestConfig{
-		DataFile:    dataFile,
-		FailureLog:  failureLog,
-		Method:      method,
-		SuccessLog:  successLog,
-		Token:       tokenValue,
-		TokenScheme: tokenScheme,
-		Url:         url,
-		WorkerCount: workerCount,
+		DataFile:    pick(argsConfig.DataFile, fileConfig.DataFile, ""),
+		FailureLog:  pick(argsConfig.FailureLog, fileConfig.FailureLog, ""),
+		Method:      pick(argsConfig.Method, fileConfig.Method, ""),
+		Mode:        pick(argsConfig.Mode, fileConfig.Mode, ""),
+		SuccessLog:  pick(argsConfig.SuccessLog, fileConfig.SuccessLog, ""),
+		Token:       pick(argsConfig.Token, fileConfig.Token, ""),
+		TokenScheme: pick(argsConfig.TokenScheme, fileConfig.TokenScheme, ""),
+		Url:         pick(argsConfig.Url, fileConfig.Url, ""),
+		WorkerCount: pick(argsConfig.WorkerCount, fileConfig.WorkerCount, 0),
 	}
+}
+
+func pick[T comparable](primary T, fallback T, zero T) T {
+	if primary != zero {
+		return primary
+	}
+	return fallback
 }
 
 func redactToken(token string) string {
@@ -177,30 +144,49 @@ func redactToken(token string) string {
 	return "****" + token[len(token)-4:]
 }
 
-func promptForMissingRequiredArgs(workerCount *int, method *string, url *string, dataFile *string) {
+func promptForMissingRequiredArgs(reqconfig *RequestConfig) {
 	scanner := bufio.NewScanner(os.Stdin)
-	if *workerCount == 0 {
+	if reqconfig.WorkerCount == 0 {
 		fmt.Print("Worker count: ")
 		scanner.Scan()
 		count, err := strconv.Atoi(scanner.Text())
 		if err != nil {
 			log.Fatal(err)
 		}
-		*workerCount = count
+		reqconfig.WorkerCount = count
 	}
-	if *url == "" {
+	if reqconfig.Url == "" {
 		fmt.Print("Url: ")
 		scanner.Scan()
-		*url = scanner.Text()
+		reqconfig.Url = scanner.Text()
 	}
-	if *dataFile == "" {
+	if reqconfig.DataFile == "" {
 		fmt.Print("JSON file path: ")
 		scanner.Scan()
-		*dataFile = scanner.Text()
+		reqconfig.DataFile = scanner.Text()
 	}
-	if *method == "" {
+	if reqconfig.Method == "" {
 		fmt.Print("Method (post, get, put, delete): ")
 		scanner.Scan()
-		*method = scanner.Text()
+		reqconfig.Method = scanner.Text()
+	}
+}
+
+func PromptForAdditionalHeaders(reqconfig *RequestConfig) {
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Print("Add additional headers? (y/N): ")
+	scanner.Scan()
+	addHeaders := scanner.Text()
+	if addHeaders == "y" || addHeaders == "Y" {
+		fmt.Print("Provide colon-separated header name and value: ")
+		scanner.Scan()
+		header := scanner.Text()
+		parts := strings.SplitN(header, ":", 2)
+
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			reqconfig.Headers = append(reqconfig.Headers, Header{Name: key, Value: value})
+		}
 	}
 }

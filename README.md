@@ -22,7 +22,7 @@ Make sure `$GOPATH/bin` or `$HOME/go/bin` is in your `PATH`.
 ## Usage
 
 ```sh
-reqd -d ./data.json -m POST -s Bearer -t YOUR_TOKEN -u https://example.com/api -w 10
+reqd -d ./data.json -rm POST -s Bearer -t YOUR_TOKEN -u https://example.com/api -w 10
 ```
 
 You can also define defaults in a config file at `~/.reqd.conf`:
@@ -45,7 +45,7 @@ If any required values are missing from CLI flags and the config file, `reqd` wi
 | Flag  | Description                                                                     |
 | ----- | ------------------------------------------------------------------------------- |
 | `-d`  | Path to JSON file containing an array of request data objects                   |
-| `-m`  | HTTP method to use (`POST`, `GET`, `PUT`, `DELETE`, etc.)                       |
+| `-rm`  | HTTP request method to use (`POST`, `GET`, `PUT`, `DELETE`, etc.)                       |
 | `-lf` | Name of log file for failed requests (no failure logging if not provided)       |
 | `-ls` | Name of log file for unsuccessful requests (no success logging if not provided) |
 | `-s`  | Auth token scheme (e.g. `Bearer`)                                               |

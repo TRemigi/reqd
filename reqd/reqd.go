@@ -1,4 +1,4 @@
-package rex
+package reqd
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/TRemigi/reqd/reporting"
-	"github.com/TRemigi/reqd/reqconfig"
+	"github.com/TRemigi/reqd/reqc"
 	"github.com/fatih/color"
 )
 
@@ -24,7 +24,7 @@ func CreateJobs(reqBodies []map[string]any) chan map[string]any {
 	return jobs
 }
 
-func GetReqd(config reqconfig.RequestConfig, jobs chan map[string]any, ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup) <-chan reporting.Result {
+func GetReqd(config reqc.RequestConfig, jobs chan map[string]any, ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup) <-chan reporting.Result {
 	results := make(chan reporting.Result)
 	client := &http.Client{}
 
@@ -56,12 +56,20 @@ func GetReqd(config reqconfig.RequestConfig, jobs chan map[string]any, ctx conte
 	return results
 }
 
-func makeRequest(ctx context.Context, cancel context.CancelFunc, job map[string]any, config reqconfig.RequestConfig, client *http.Client, results chan<- reporting.Result) {
+func replayRequest(ctx context.Context, cancel context.CancelFunc, job map[string]any, config reqc.RequestConfig, client *http.Client, results chan<- reporting.Result) {
+		
+}
+
+func makeRequest(ctx context.Context, cancel context.CancelFunc, job map[string]any, config reqc.RequestConfig, client *http.Client, results chan<- reporting.Result) {
 	reqBody, _ := json.Marshal(job)
 	req, _ := http.NewRequestWithContext(ctx, strings.ToUpper(config.Method), config.Url, bytes.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/json")
 	if config.TokenScheme != "" {
 		req.Header.Set("Authorization", config.TokenScheme+" "+config.Token)
+	}
+
+	for _, header := range config.Headers {
+		req.Header.Set(header.Name, header.Value)
 	}
 
 	reqBuf := copyForLogging(req, reqBody)
@@ -90,7 +98,7 @@ func makeRequest(ctx context.Context, cancel context.CancelFunc, job map[string]
 
 func copyForLogging(req *http.Request, reqBody []byte) *bytes.Buffer {
 	reqBuf := new(bytes.Buffer)
-	fmt.Fprintf(reqBuf, "%s %s HTTP/1.1\r\n", req.Method, req.URL.String())
+	fmt.Fprintf(reqBuf, "%s %s \r\n", req.Method, req.URL.String())
 	req.Header.Write(reqBuf)
 	fmt.Fprintf(reqBuf, "\r\n")
 	reqBuf.Write(reqBody)

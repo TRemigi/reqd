@@ -20,7 +20,8 @@ Flag Precedence:
 Flags:
 	-c     Path to config file (defaults to ~/.reqd.conf)
   -d     Path to a JSON file containing an array of request data objects
-  -m     Request method (post, get, put, delete)
+  -rm    Request method (post, get, put, delete)
+	-m     Mode: 'replay' will recreate entire requests from a file of HTTP messages - URLs, methods and headers will be replaced with those set in flags or config file. Default behavior when not set.
 	-lf    Name of log file for failed requests
 	-ls    Name of log file for successful requests
   -s     Auth token scheme (e.g., Bearer)
@@ -29,9 +30,9 @@ Flags:
   -w     Number of concurrent worker goroutines to send requests
   -h     Show this help message and exit
 
-Configuration File (~/.reqd.conf):
+Configuration File (~/.reqd.conf by default):
   You may define default values using a simple key = value format:
-    data_file = ~/Downloads/requests.json
+    data_file = ~/Downloads/request-bodies.json
 		failure_log = falied.log
     method = POST
 		success_log = succeeded.log
@@ -41,7 +42,7 @@ Configuration File (~/.reqd.conf):
     worker_count = 8
 
 Examples:
-  reqd -d ./reqs.json -s Bearer -t supersecrettoken -u https://api.example.com/data -w 8 -lf failed.log -ls succeeded.log
-  reqd                # Uses values from ~/.reqd.conf and prompts for any missing flags
+  reqd -rm GET -d ./reqs.json -s Bearer -t supersecrettoken -u https://api.example.com/data -w 8 -lf failed.log -ls succeeded.log
+  reqd                # Uses values from ~/.reqd.conf and prompts for any missing required values
 `
 }

@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/TRemigi/reqd/reqconfig"
+	"github.com/TRemigi/reqd/reqc"
 	"github.com/schollz/progressbar/v3"
 )
 
@@ -16,7 +16,7 @@ type Result struct {
 	IsFailure bool
 }
 
-func ProcessResults(c reqconfig.RequestConfig, results <-chan Result, bar *progressbar.ProgressBar, wg *sync.WaitGroup) {
+func ProcessResults(c reqc.RequestConfig, results <-chan Result, bar *progressbar.ProgressBar, wg *sync.WaitGroup) {
 	failureChan, successChan := make(chan Result, 500), make(chan Result, 500)
 	if c.FailureLog != "" {
 		wg.Add(1)
